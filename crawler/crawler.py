@@ -24,9 +24,9 @@ TARGET_SUBREDDITS = [
 ]
 
 # Filtering Constants
-MIN_CONTENT_LENGTH = 150
+MIN_CONTENT_LENGTH = 50
 # Increased diversity threshold (Needs more unique chars to be valid text)
-MIN_CHAR_DIVERSITY = 0.20 
+MIN_CHAR_DIVERSITY = 0.15 
 SPAM_KEYWORDS = ["check out my", "new video", "sub4sub", "watch my", "please subscribe", "channel review", "my first video"]
 
 def get_supabase_headers():

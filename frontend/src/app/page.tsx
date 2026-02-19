@@ -11,7 +11,7 @@ async function getPosts() {
     .from('posts')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(30)
 
   if (error) {
     console.error('Error fetching posts:', error)
