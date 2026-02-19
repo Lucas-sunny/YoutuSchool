@@ -203,8 +203,15 @@ def run_crawler():
     print("Crawler cycle finished.")
 
 if __name__ == "__main__":
-    print("🚀 RSS Crawler initialized (Korean Translation Enabled 🇰🇷).")
-    while True:
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--once":
+        print("🚀 Running crawler once (GitHub Actions Mode)...")
         run_crawler()
-        print("Sleeping for 60 seconds...")
-        time.sleep(60)
+        print("✅ Crawler cycle completed.")
+    else:
+        print("🚀 RSS Crawler initialized (Korean Translation Enabled 🇰🇷).")
+        while True:
+            run_crawler()
+            print("Sleeping for 60 seconds...")
+            time.sleep(60)
