@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import re
 from deep_translator import GoogleTranslator
+from ai_summarizer import generate_insight
 
 # Load environment variables
 load_dotenv()
@@ -168,6 +169,14 @@ def run_crawler():
                 translated_title = translate_text(title)
                 translated_content = translate_text(cleaned_content)
 
+                # Generate AI Insight (🔥 The Info Club 핵심 기능!)
+                print(f"  🤖 Generating AI Insight for: {title[:50]}...")
+                ai_insight = generate_insight(
+                    title=title,
+                    content=cleaned_content,
+                    subreddit=subreddit
+                )
+
                 # Prepare data for Supabase
                 post_data = {
                     "post_id": post_id,
@@ -179,7 +188,8 @@ def run_crawler():
                     "upvotes": 0,
                     "comment_count": 0,
                     "created_at": published_str if published_str else datetime.now().isoformat(),
-                    "crawled_at": datetime.now().isoformat()
+                    "crawled_at": datetime.now().isoformat(),
+                    "ai_insight": ai_insight  # 🔥 AI 트렌드 인사이트
                 }
                 
                 # Insert into Supabase

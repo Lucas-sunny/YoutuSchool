@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { MessageSquare, ThumbsUp, ExternalLink, Globe } from 'lucide-react'
+import { MessageSquare, ThumbsUp, ExternalLink, Globe, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -17,6 +17,7 @@ interface PostProps {
         created_at: string
         upvotes: number
         comment_count: number
+        ai_insight?: string | null
     }
 }
 
@@ -55,6 +56,18 @@ export function PostCard({ post }: PostProps) {
                 <div className="text-sm text-muted-foreground line-clamp-4 leading-relaxed whitespace-pre-wrap">
                     {displayContent || "No content available."}
                 </div>
+
+                {post.ai_insight && (
+                    <div className="rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border border-orange-200 dark:border-orange-800 p-4 space-y-1">
+                        <div className="flex items-center gap-1.5 text-sm font-semibold text-orange-600 dark:text-orange-400">
+                            <Sparkles className="h-4 w-4" />
+                            AI 트렌드 인사이트
+                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                            {post.ai_insight}
+                        </p>
+                    </div>
+                )}
 
                 {englishPart && (
                     <button

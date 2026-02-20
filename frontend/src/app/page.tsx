@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabaseClient'
 import { Hero } from '@/components/Hero'
 import { PostCard } from '@/components/PostCard'
-import { Newspaper, Trophy, Users } from 'lucide-react'
+import { TrendDashboard } from '@/components/TrendDashboard'
+import { Newspaper, Trophy, Users, Sparkles } from 'lucide-react'
 
 // Fetch data from Supabase
 export const revalidate = 0; // Disable static caching
@@ -48,6 +49,25 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* 📊 Multi-Platform Trend Dashboard */}
+      <TrendDashboard />
+
+      {/* 🔥 AI 추천 트렌드 섹션 */}
+      {posts.filter((p: any) => p.ai_insight).length > 0 && (
+        <section id="ai-trends" className="container mx-auto px-4 md:px-6 py-12">
+          <h2 className="text-3xl font-bold tracking-tighter mb-8 border-b pb-4 flex items-center gap-3">
+            <Sparkles className="h-8 w-8 text-orange-500" />
+            AI 추천 트렌드
+            <span className="text-lg font-normal text-muted-foreground ml-2">AI가 분석한 핫 토픽</span>
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {posts.filter((p: any) => p.ai_insight).slice(0, 6).map((post: any) => (
+              <PostCard key={`insight-${post.id}`} post={post} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Recent Posts Grid */}
       <section id="posts" className="container mx-auto px-4 md:px-6 py-12">
         <h2 className="text-3xl font-bold tracking-tighter mb-8 border-b pb-4">
@@ -61,7 +81,7 @@ export default async function Home() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>
