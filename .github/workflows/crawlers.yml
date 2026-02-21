@@ -1,0 +1,103 @@
+name: YoutuSchool Crawlers
+
+on:
+  schedule:
+    # Reddit 크롤러: 매 2시간마다
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # 수동 실행 버튼
+
+jobs:
+  # ─────────────────────────────────────
+  # 1. Reddit 크롤러 (AI 인사이트 포함)
+  # ─────────────────────────────────────
+  reddit-crawler:
+    name: Reddit Crawler
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 패키지 설치
+        run: |
+          pip install requests python-dotenv deep-translator
+
+      - name: Reddit 크롤러 실행
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cd crawler
+          python crawler.py --once
+
+  # ─────────────────────────────────────
+  # 2. YouTube 크롤러 (하루 4번)
+  # ─────────────────────────────────────
+  youtube-crawler:
+    name: YouTube Trending Crawler
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && contains('0 0,6,12,18 * * *', github.event.schedule))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 패키지 설치
+        run: pip install requests python-dotenv
+
+      - name: YouTube 크롤러 실행
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          cd crawler
+          python youtube_trending.py --once
+
+  # ─────────────────────────────────────
+  # 3. Google Trends + 주간 리포트 (하루 1번, 한국시간 오전 9시)
+  # ─────────────────────────────────────
+  trends-and-report:
+    name: Google Trends + Weekly Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && contains('0 0 * * *', github.event.schedule))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 패키지 설치
+        run: pip install requests python-dotenv pytrends
+
+      - name: Google Trends 크롤러 실행
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          cd crawler
+          python google_trends.py --once
+
+      - name: 주간 트렌드 리포트 생성
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cd crawler
+          python trend_analyzer.py --once
