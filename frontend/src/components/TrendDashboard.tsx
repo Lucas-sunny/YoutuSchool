@@ -111,6 +111,7 @@ async function supabaseFetch(table: string, params: string = '') {
 
 export function TrendDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>('youtube')
+    const [activeCategory, setActiveCategory] = useState<string>('전체')
     const [youtubeData, setYoutubeData] = useState<YouTubeTrend[]>([])
     const [googleData, setGoogleData] = useState<GoogleTrend[]>([])
     const [report, setReport] = useState<WeeklyReport | null>(null)
@@ -207,46 +208,88 @@ export function TrendDashboard() {
                         <div className="space-y-3">
                             {youtubeData.length === 0 ? (
                                 <p className="text-muted-foreground text-center py-8">아직 YouTube 데이터가 없습니다. 크롤러를 실행해주세요.</p>
-                            ) : (
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    {youtubeData.map((v, i) => (
-                                        <a
-                                            key={v.id}
-                                            href={`https://www.youtube.com/watch?v=${v.video_id}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-start gap-3 p-4 rounded-lg border bg-card hover:shadow-md transition-all group"
-                                        >
-                                            <span className="text-2xl font-bold text-muted-foreground/30 min-w-[2rem]">
-                                                {i + 1}
-                                            </span>
-                                            {v.thumbnail_url && (
-                                                <img
-                                                    src={v.thumbnail_url}
-                                                    alt=""
-                                                    className="w-24 h-16 object-cover rounded flex-shrink-0"
-                                                />
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-semibold text-sm leading-tight group-hover:text-red-500 line-clamp-2 transition-colors">
-                                                    {v.title}
-                                                </h4>
-                                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                    <span>{v.channel_title}</span>
-                                                    <span>•</span>
-                                                    <span>조회수 {v.view_count >= 10000 ? `${(v.view_count / 10000).toFixed(1)}만` : v.view_count.toLocaleString()}</span>
-                                                    <span className="ml-auto px-1.5 py-0.5 rounded bg-muted text-[10px]">
-                                                        {v.category}
+                            ) : (() => {
+                                // 카테고리 목록 동적 생성
+                                const categories = ['전체', ...Array.from(new Set(youtubeData.map(v => v.category))).sort()]
+                                const filtered = activeCategory === '전체'
+                                    ? youtubeData
+                                    : youtubeData.filter(v => v.category === activeCategory)
+
+                                // 카테고리별 이모지 매핑
+                                const categoryEmoji: Record<string, string> = {
+                                    '전체': '🔥', '음악': '🎵', '게임': '🎮', '엔터테인먼트': '🎬',
+                                    '뉴스/정치': '📰', '교육': '📚', '스포츠': '⚽', '과학/기술': '🔬',
+                                    '일상/블로그': '📹', '영화/애니메이션': '🎥', '코미디': '😂',
+                                    '여행/이벤트': '✈️', '스타일': '👗', '자동차': '🚗', '동물': '🐾',
+                                    '비영리/사회운동': '🌱'
+                                }
+
+                                return (
+                                    <>
+                                        {/* 카테고리 서브탭 */}
+                                        <div className="flex gap-1.5 flex-wrap mb-4 pb-3 border-b">
+                                            {categories.map(cat => {
+                                                const count = cat === '전체' ? youtubeData.length : youtubeData.filter(v => v.category === cat).length
+                                                return (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setActiveCategory(cat)}
+                                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeCategory === cat
+                                                                ? 'bg-red-500 text-white shadow-sm'
+                                                                : 'bg-muted hover:bg-muted/70 text-muted-foreground hover:text-foreground'
+                                                            }`}
+                                                    >
+                                                        <span>{categoryEmoji[cat] || '📌'}</span>
+                                                        <span>{cat}</span>
+                                                        <span className={`px-1 rounded-full text-[10px] ${activeCategory === cat ? 'bg-white/20' : 'bg-background'
+                                                            }`}>{count}</span>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+
+                                        {/* 필터된 영상 목록 */}
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            {filtered.map((v, i) => (
+                                                <a
+                                                    key={v.id}
+                                                    href={`https://www.youtube.com/watch?v=${v.video_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-start gap-3 p-4 rounded-lg border bg-card hover:shadow-md transition-all group"
+                                                >
+                                                    <span className="text-2xl font-bold text-muted-foreground/30 min-w-[2rem]">
+                                                        {i + 1}
                                                     </span>
-                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${v.region === 'KR' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                                                        {v.region === 'KR' ? '🇰🇷 KR' : '🇺🇸 US'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
+                                                    {v.thumbnail_url && (
+                                                        <img
+                                                            src={v.thumbnail_url}
+                                                            alt=""
+                                                            className="w-24 h-16 object-cover rounded flex-shrink-0"
+                                                        />
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-semibold text-sm leading-tight group-hover:text-red-500 line-clamp-2 transition-colors">
+                                                            {v.title}
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                                            <span>{v.channel_title}</span>
+                                                            <span>•</span>
+                                                            <span>조회수 {v.view_count >= 10000 ? `${(v.view_count / 10000).toFixed(1)}만` : v.view_count.toLocaleString()}</span>
+                                                            <span className="ml-auto px-1.5 py-0.5 rounded bg-muted text-[10px]">
+                                                                {v.category}
+                                                            </span>
+                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${v.region === 'KR' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                                {v.region === 'KR' ? '🇰🇷 KR' : '🇺🇸 US'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </>
+                                )
+                            })()}
                         </div>
                     )}
 
