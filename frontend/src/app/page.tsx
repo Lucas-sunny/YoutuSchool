@@ -8,18 +8,36 @@ import { Newspaper, Trophy, Users, Sparkles } from 'lucide-react'
 export const revalidate = 0; // Disable static caching
 
 async function getPosts() {
-  const { data: posts, error } = await supabase
+  // ai_insight가 있는 최신 포스트 우선 가져오기
+  const { data: withInsight, error: e1 } = await supabase
     .from('posts')
     .select('*')
+    .not('ai_insight', 'is', null)
     .order('created_at', { ascending: false })
     .limit(30)
 
-  if (error) {
-    console.error('Error fetching posts:', error)
-    return []
+  if (e1) {
+    console.error('Error fetching posts with insight:', e1)
   }
-  return posts || []
+
+  // 인사이트 있는 게 30개 미만이면 최신 포스트로 채우기
+  const insightPosts = withInsight || []
+  if (insightPosts.length < 30) {
+    const insightIds = insightPosts.map((p: any) => p.id)
+    const { data: recent, error: e2 } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(30)
+    if (!e2 && recent) {
+      const merged = [...insightPosts, ...recent.filter((p: any) => !insightIds.includes(p.id))]
+      return merged.slice(0, 30)
+    }
+  }
+
+  return insightPosts
 }
+
 
 export default async function Home() {
   const posts = await getPosts()
