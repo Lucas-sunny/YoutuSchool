@@ -22,8 +22,11 @@ CATEGORY_MAP = {
     "27": "교육", "28": "과학/기술", "29": "비영리/사회운동"
 }
 
-# 수집 대상 지역
-TARGET_REGIONS = ["KR", "US"]
+# 수집 대상 지역 (KR 우선, 더 많은 수량)
+TARGET_REGIONS = [
+    {"code": "KR", "max_results": 50},  # 한국 50개 (최대)
+    {"code": "US", "max_results": 25},  # 미국 25개
+]
 
 
 def get_supabase_headers():
@@ -124,8 +127,10 @@ def run_youtube_crawler():
 
     all_videos = []
     for region in TARGET_REGIONS:
-        print(f"  📍 {region} 지역 인기 동영상 수집 중...")
-        videos = fetch_trending_videos(region_code=region)
+        code = region["code"]
+        max_r = region["max_results"]
+        print(f"  📍 {code} 지역 인기 동영상 수집 중... (최대 {max_r}개)")
+        videos = fetch_trending_videos(region_code=code, max_results=max_r)
         all_videos.extend(videos)
 
     if all_videos:
@@ -144,9 +149,9 @@ if __name__ == "__main__":
         run_youtube_crawler()
         print("✅ 완료!")
     else:
-        import time
-        print("🚀 YouTube Trending Crawler (반복 모드, 30분 간격)")
+        import time as time_module
+        print("🚀 YouTube Trending Crawler (자동 반복 모드, 6시간 간격)")
         while True:
             run_youtube_crawler()
-            print("😴 30분 대기 중...")
-            time.sleep(1800)  # 30분 간격 (API 할당량 절약)
+            print("😴 6시간 대기 중... (YouTube API 할당량 절약)")
+            time_module.sleep(21600)  # 6시간

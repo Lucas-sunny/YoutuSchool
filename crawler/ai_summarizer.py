@@ -5,6 +5,7 @@ OpenAI REST API를 requests로 직접 호출 (Python 3.14 호환)
 """
 import os
 import requests
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +27,7 @@ USER_PROMPT_TEMPLATE = """다음 Reddit 글을 분석해주세요:
 내용: {content}"""
 
 
-def generate_insight(title: str, content: str, subreddit: str) -> str | None:
+def generate_insight(title: str, content: str, subreddit: str) -> Optional[str]:
     """
     OpenAI REST API로 포스트 인사이트를 생성합니다.
     """
@@ -57,7 +58,7 @@ def generate_insight(title: str, content: str, subreddit: str) -> str | None:
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=5
         )
         if resp.status_code == 200:
             insight = resp.json()["choices"][0]["message"]["content"].strip()
@@ -66,6 +67,12 @@ def generate_insight(title: str, content: str, subreddit: str) -> str | None:
         else:
             print(f"  ❌ AI Insight failed: {resp.status_code} - {resp.text[:100]}")
             return None
+    except requests.exceptions.Timeout:
+        print("  ⏱️ AI Insight timeout (5s) - skipping")
+        return None
+    except requests.exceptions.ConnectionError:
+        print("  🔌 AI Insight connection failed - skipping")
+        return None
     except Exception as e:
         print(f"  ❌ AI Insight generation failed: {e}")
         return None
