@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, Youtube, Search, BarChart3, ChevronDown, ChevronUp } from 'lucide-react'
+import { TrendingUp, Youtube, Search, BarChart3, ChevronDown, ChevronUp, Globe } from 'lucide-react'
 
 // 마크다운을 HTML로 변환하는 간단한 렌더러
 function renderMarkdown(text: string) {
@@ -125,10 +125,10 @@ export function TrendDashboard() {
                 setLoading(true)
                 setError(null)
 
-                // YouTube Trends
+                // YouTube Trends - 넉넉하게 가져와서 프론트에서 필터
                 const yt = await supabaseFetch(
                     'youtube_trends',
-                    'select=*&order=view_count.desc&limit=20'
+                    'select=*&order=view_count.desc&limit=300'
                 )
                 setYoutubeData(Array.isArray(yt) ? yt : [])
 
@@ -211,87 +211,119 @@ export function TrendDashboard() {
                             ) : (() => {
                                 // 카테고리 목록 동적 생성
                                 const categories = ['전체', ...Array.from(new Set(youtubeData.map(v => v.category))).sort()]
-                                const filtered = activeCategory === '전체'
-                                    ? youtubeData
-                                    : youtubeData.filter(v => v.category === activeCategory)
+
+                                // 선택된 카테고리로 필터링
+                                const byCat = activeCategory === '전체' ? youtubeData : youtubeData.filter(v => v.category === activeCategory)
+
+                                // KR / US 분리 후 각 TOP 10
+                                const krVideos = byCat.filter(v => v.region === 'KR').slice(0, 10)
+                                const usVideos = byCat.filter(v => v.region === 'US').slice(0, 10)
 
                                 // 카테고리별 이모지 매핑
                                 const categoryEmoji: Record<string, string> = {
                                     '전체': '🔥', '음악': '🎵', '게임': '🎮', '엔터테인먼트': '🎬',
                                     '뉴스/정치': '📰', '교육': '📚', '스포츠': '⚽', '과학/기술': '🔬',
                                     '일상/블로그': '📹', '영화/애니메이션': '🎥', '코미디': '😂',
-                                    '여행/이벤트': '✈️', '스타일': '👗', '자동차': '🚗', '동물': '🐾',
+                                    '여행/이벤트': '✈️', '스타일/뷰티': '💄', '자동차': '🚗', '동물': '🐾',
                                     '비영리/사회운동': '🌱'
                                 }
+
+                                // 영상 카드 컴포넌트
+                                const VideoCard = ({ v, i }: { v: YouTubeTrend; i: number }) => (
+                                    <a
+                                        href={`https://www.youtube.com/watch?v=${v.video_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:shadow-md transition-all group"
+                                    >
+                                        <span className="text-lg font-bold text-muted-foreground/30 min-w-[1.5rem] pt-0.5">
+                                            {i + 1}
+                                        </span>
+                                        {v.thumbnail_url && (
+                                            <img
+                                                src={v.thumbnail_url}
+                                                alt=""
+                                                className="w-20 h-14 object-cover rounded flex-shrink-0"
+                                            />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-semibold text-sm leading-tight group-hover:text-red-500 line-clamp-2 transition-colors">
+                                                {v.title}
+                                            </h4>
+                                            <p className="text-xs text-muted-foreground mt-1 truncate">{v.channel_title}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                조회수 {v.view_count >= 10000 ? `${(v.view_count / 10000).toFixed(1)}만` : v.view_count.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </a>
+                                )
 
                                 return (
                                     <>
                                         {/* 카테고리 서브탭 */}
-                                        <div className="flex gap-1.5 flex-wrap mb-4 pb-3 border-b">
+                                        <div className="flex gap-1.5 flex-wrap mb-5 pb-3 border-b">
                                             {categories.map(cat => {
-                                                const count = cat === '전체' ? youtubeData.length : youtubeData.filter(v => v.category === cat).length
+                                                const total = cat === '전체'
+                                                    ? youtubeData.length
+                                                    : youtubeData.filter(v => v.category === cat).length
                                                 return (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setActiveCategory(cat)}
                                                         className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeCategory === cat
-                                                                ? 'bg-red-500 text-white shadow-sm'
+                                                                ? 'bg-red-500 text-white shadow-sm scale-105'
                                                                 : 'bg-muted hover:bg-muted/70 text-muted-foreground hover:text-foreground'
                                                             }`}
                                                     >
                                                         <span>{categoryEmoji[cat] || '📌'}</span>
                                                         <span>{cat}</span>
                                                         <span className={`px-1 rounded-full text-[10px] ${activeCategory === cat ? 'bg-white/20' : 'bg-background'
-                                                            }`}>{count}</span>
+                                                            }`}>{total}</span>
                                                     </button>
                                                 )
                                             })}
                                         </div>
 
-                                        {/* 필터된 영상 목록 */}
-                                        <div className="grid gap-3 md:grid-cols-2">
-                                            {filtered.map((v, i) => (
-                                                <a
-                                                    key={v.id}
-                                                    href={`https://www.youtube.com/watch?v=${v.video_id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-start gap-3 p-4 rounded-lg border bg-card hover:shadow-md transition-all group"
-                                                >
-                                                    <span className="text-2xl font-bold text-muted-foreground/30 min-w-[2rem]">
-                                                        {i + 1}
-                                                    </span>
-                                                    {v.thumbnail_url && (
-                                                        <img
-                                                            src={v.thumbnail_url}
-                                                            alt=""
-                                                            className="w-24 h-16 object-cover rounded flex-shrink-0"
-                                                        />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-sm leading-tight group-hover:text-red-500 line-clamp-2 transition-colors">
-                                                            {v.title}
-                                                        </h4>
-                                                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                            <span>{v.channel_title}</span>
-                                                            <span>•</span>
-                                                            <span>조회수 {v.view_count >= 10000 ? `${(v.view_count / 10000).toFixed(1)}만` : v.view_count.toLocaleString()}</span>
-                                                            <span className="ml-auto px-1.5 py-0.5 rounded bg-muted text-[10px]">
-                                                                {v.category}
-                                                            </span>
-                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${v.region === 'KR' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                                                                {v.region === 'KR' ? '🇰🇷 KR' : '🇺🇸 US'}
-                                                            </span>
-                                                        </div>
+                                        {/* 🇰🇷 한국 / 🇺🇸 해외 2단 레이아웃 */}
+                                        <div className="grid gap-6 md:grid-cols-2">
+                                            {/* 한국 TOP 10 */}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <span className="text-xl">🇰🇷</span>
+                                                    <h3 className="font-bold text-base">한국 TOP {krVideos.length}</h3>
+                                                    <span className="text-xs bg-blue-100 dark:bg-blue-950/30 text-blue-600 px-2 py-0.5 rounded-full">KR</span>
+                                                </div>
+                                                {krVideos.length === 0 ? (
+                                                    <p className="text-xs text-muted-foreground py-4 text-center">한국 데이터가 없습니다</p>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {krVideos.map((v, i) => <VideoCard key={v.id} v={v} i={i} />)}
                                                     </div>
-                                                </a>
-                                            ))}
+                                                )}
+                                            </div>
+
+                                            {/* 해외 TOP 10 */}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <span className="text-xl">🇺🇸</span>
+                                                    <h3 className="font-bold text-base">해외 TOP {usVideos.length}</h3>
+                                                    <span className="text-xs bg-green-100 dark:bg-green-950/30 text-green-600 px-2 py-0.5 rounded-full">US</span>
+                                                </div>
+                                                {usVideos.length === 0 ? (
+                                                    <p className="text-xs text-muted-foreground py-4 text-center">해외 데이터가 없습니다</p>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {usVideos.map((v, i) => <VideoCard key={v.id} v={v} i={i} />)}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </>
                                 )
                             })()}
                         </div>
                     )}
+
 
                     {/* Google Trends Tab */}
                     {activeTab === 'google' && (
