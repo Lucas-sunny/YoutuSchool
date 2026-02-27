@@ -189,18 +189,23 @@ def run_crawler():
                     "comment_count": 0,
                     "created_at": published_str if published_str else datetime.now().isoformat(),
                     "crawled_at": datetime.now().isoformat(),
-                    "ai_insight": ai_insight  # 🔥 AI 트렌드 인사이트
                 }
-                
+                # ai_insight가 있을 때만 포함 (null로 기존 데이터 덮어쓰기 방지)
+                if ai_insight:
+                    post_data["ai_insight"] = ai_insight
+
                 # Insert into Supabase
                 endpoint = f"{SUPABASE_URL}/rest/v1/posts?on_conflict=post_id"
                 upsert_response = requests.post(endpoint, json=post_data, headers=get_supabase_headers())
-                
+
                 if upsert_response.status_code in range(200, 300):
-                     # print(f"  Saved: {title[:30]}...")
-                     pass
+                    # 새로 삽입된 포스트인데 ai_insight가 없으면 별도 patch
+                    if not ai_insight:
+                        # 나중에 batch update script로 처리됨
+                        pass
                 else:
                     print(f"  Failed to save: {upsert_response.status_code} - {upsert_response.text}")
+
                 
                 # Respect Translation API limits (small delay)
                 time.sleep(0.5)
