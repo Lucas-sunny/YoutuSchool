@@ -4,6 +4,10 @@ on:
   schedule:
     # Reddit 크롤러: 매 2시간마다
     - cron: '0 */2 * * *'
+    # YouTube 크롤러: 하루 4번 (UTC 0,6,12,18시 = KST 9,15,21,3시)
+    - cron: '0 0,6,12,18 * * *'
+    # Google Trends + 주간 리포트: 하루 1번 (UTC 0시 = KST 9시)
+    - cron: '0 0 * * *'
   workflow_dispatch: # 수동 실행 버튼
 
 jobs:
@@ -13,6 +17,8 @@ jobs:
   reddit-crawler:
     name: Reddit Crawler
     runs-on: ubuntu-latest
+    # Reddit은 '0 */2 * * *' 또는 수동 실행일 때만 실행
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */2 * * *'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +48,8 @@ jobs:
   youtube-crawler:
     name: YouTube Trending Crawler
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && contains('0 0,6,12,18 * * *', github.event.schedule))
+    # YouTube는 '0 0,6,12,18 * * *' 또는 수동 실행일 때만 실행
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 0,6,12,18 * * *'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,7 +78,8 @@ jobs:
   trends-and-report:
     name: Google Trends + Weekly Report
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && contains('0 0 * * *', github.event.schedule))
+    # Trends는 '0 0 * * *' 또는 수동 실행일 때만 실행
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 0 * * *'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
