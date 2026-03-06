@@ -30,7 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 초기 세션 확인
         const initAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                // 5초 타임아웃 - 만료 토큰 갱신이 무한 대기하는 경우 차단
+                const sessionPromise = supabase.auth.getSession()
+                const timeoutPromise = new Promise<null>((resolve) =>
+                    setTimeout(() => resolve(null), 5000)
+                )
+                const result = await Promise.race([sessionPromise, timeoutPromise])
+
+                // 타임아웃 시 로컬 세션 초기화
+                if (!result) {
+                    await supabase.auth.signOut({ scope: 'local' })
+                    return
+                }
+
+                const { data: { session } } = result
                 const u = session?.user ?? null
                 setUser(u)
                 if (u) {
