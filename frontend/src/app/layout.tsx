@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/Navbar'
+import { AuthProvider } from '@/components/AuthProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'YoutuSchool - Creator Academy',
-  description: 'Global insights for Korean YouTube Creators',
+  title: 'Sunny Insight - 유튜버를 위한 글로벌 인사이트',
+  description: '유튜브 정책, 수익창출, 최신 뉴스를 한국어로 제공합니다',
 }
 
 export default function RootLayout({
@@ -18,8 +19,10 @@ export default function RootLayout({
   return (
     <html lang="ko" className="dark">
       <body className={inter.className}>
-        <Navbar />
-        {children}
+        <AuthProvider>
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
