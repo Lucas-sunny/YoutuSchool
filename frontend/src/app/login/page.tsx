@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from '@/lib/auth'
-import { getUserProfile } from '@/lib/auth'
-import { supabase } from '@/lib/supabaseClient'
+import { signIn, getUserProfile, ADMIN_EMAIL } from '@/lib/auth'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -23,7 +21,7 @@ export default function LoginPage() {
             const user = data.user
 
             // 관리자 이메일은 바로 메인으로
-            if (user?.email && user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
+            if (user?.email && user.email === ADMIN_EMAIL) {
                 router.push('/')
                 return
             }
