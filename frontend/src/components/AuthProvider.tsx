@@ -28,23 +28,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         // 초기 세션 확인
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            const u = session?.user ?? null
-            setUser(u)
-            if (u) {
-                const p = await getUserProfile(u.id)
-                setProfile(p)
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                const u = session?.user ?? null
+                setUser(u)
+                if (u) {
+                    try {
+                        const p = await getUserProfile(u.id)
+                        setProfile(p)
+                    } catch {
+                        // 프로필 로드 실패해도 계속 진행
+                    }
+                }
+            } catch {
+                // 세션 확인 실패해도 계속 진행
+            } finally {
+                setLoading(false) // 항상 로딩 해제
             }
-            setLoading(false)
-        })
+        }
+
+        initAuth()
 
         // 로그인/로그아웃 이벤트 구독
         const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const u = session?.user ?? null
             setUser(u)
             if (u) {
-                const p = await getUserProfile(u.id)
-                setProfile(p)
+                try {
+                    const p = await getUserProfile(u.id)
+                    setProfile(p)
+                } catch {
+                    setProfile(null)
+                }
             } else {
                 setProfile(null)
             }
