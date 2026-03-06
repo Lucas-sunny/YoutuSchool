@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { MessageSquare, ThumbsUp, ExternalLink, Globe, Sparkles } from 'lucide-react'
-import Link from 'next/link'
+import { MessageSquare, ThumbsUp, Globe, Sparkles } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
@@ -44,9 +43,6 @@ export function PostCard({ post }: PostProps) {
                         <span>•</span>
                         <span suppressHydrationWarning>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ko })}</span>
                     </div>
-                    <Link href={post.url} target="_blank" className="text-muted-foreground hover:text-foreground">
-                        <ExternalLink className="h-4 w-4" />
-                    </Link>
                 </div>
 
                 <h3 className="text-xl font-bold leading-tight tracking-tight group-hover:underline decoration-primary underline-offset-4">

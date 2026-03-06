@@ -30,6 +30,24 @@ MIN_CONTENT_LENGTH = 50
 MIN_CHAR_DIVERSITY = 0.15 
 SPAM_KEYWORDS = ["check out my", "new video", "sub4sub", "watch my", "please subscribe", "channel review", "my first video"]
 
+# ✅ 유튜브 관련 화이트리스트 키워드 (이 중 하나라도 포함된 글만 수집)
+YOUTUBE_RELEVANT_KEYWORDS = [
+    # 정책 관련
+    "policy", "terms of service", "community guidelines", "strike",
+    "ban", "copyright", "dmca", "appeal", "violation", "suspended",
+    "age restriction", "reinstatement", "limited ads",
+    # 수익창출 관련
+    "monetization", "monetize", "adsense", "rpm", "cpm", "revenue",
+    "partner program", "ypp", "super chat", "membership",
+    "ad revenue", "payout", "threshold", "earnings", "demonetiz",
+    # 뉴스/업데이트 관련
+    "update", "announcement", "new feature", "algorithm change",
+    "breaking", "youtube changes", "youtube update", "new policy",
+    "youtube news", "creator news",
+    # 한국어 키워드 (번역 후 포함될 수 있는 단어)
+    "수익", "정책", "뉴스", "알고리즘", "수익창출", "파트너"
+]
+
 def get_supabase_headers():
     return {
         "apikey": SUPABASE_KEY,
@@ -60,6 +78,17 @@ def clean_html(raw_html):
     cleantext = re.sub(cleanr, '', content)
     
     return cleantext.strip()
+
+def is_youtube_relevant(title, content):
+    """
+    유튜브 정책/수익창출/뉴스 관련 글인지 확인
+    제목과 내용에서 화이트리스트 키워드가 하나라도 있으면 True
+    """
+    combined = (title + " " + content).lower()
+    for keyword in YOUTUBE_RELEVANT_KEYWORDS:
+        if keyword.lower() in combined:
+            return True
+    return False
 
 def validate_post(title, content):
     """
@@ -163,6 +192,11 @@ def run_crawler():
 
                 if not is_valid:
                     # print(f"  Skipping (invalid): {title[:50]}... ({reason})")
+                    continue
+
+                # ✅ 유튜브 관련 글만 수집 (정책/수익창출/뉴스)
+                if not is_youtube_relevant(title, cleaned_content):
+                    print(f"  ⏭️  Skipping (not YouTube relevant): {title[:60]}...")
                     continue
 
                 # Translate title and content
