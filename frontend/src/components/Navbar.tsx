@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Youtube, LogOut, Shield } from 'lucide-react'
+import { Youtube, LogOut, Shield, FileText } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { signOut } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -25,6 +25,13 @@ export function Navbar() {
                 <div className="flex items-center gap-4">
                     {user ? (
                         <>
+                            <Link
+                                href="/report"
+                                className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <FileText className="h-4 w-4" />
+                                주간 리포트
+                            </Link>
                             {isAdmin && (
                                 <Link
                                     href="/admin"
