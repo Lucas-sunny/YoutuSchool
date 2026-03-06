@@ -4,8 +4,8 @@
  */
 import { supabase } from './supabaseClient'
 
-// 관리자 이메일 (대표님 이메일로 변경하세요!)
-export const ADMIN_EMAIL = 'sunny@youremail.com'
+// 관리자 이메일 (대표님 계정)
+export const ADMIN_EMAIL = 'ysmin3644@gmail.com'
 
 export type UserStatus = 'pending' | 'approved' | 'rejected'
 
