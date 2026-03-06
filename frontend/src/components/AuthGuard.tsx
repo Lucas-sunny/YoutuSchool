@@ -6,14 +6,31 @@ import { supabase } from '@/lib/supabaseClient'
 import { ADMIN_EMAIL } from '@/lib/auth'
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-    const [status, setStatus] = useState<'loading' | 'approved' | 'redirect'>('loading')
+    const [status, setStatus] = useState<'loading' | 'approved' | 'done'>('loading')
     const router = useRouter()
 
     useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>
+
         const checkAuth = async () => {
             try {
-                // 세션 확인
-                const { data: { session } } = await supabase.auth.getSession()
+                // 만료된 토큰 갱신이 무한정 걸리는 경우 대비 - 5초 타임아웃
+                const sessionPromise = supabase.auth.getSession()
+                const timeoutPromise = new Promise<null>((resolve) =>
+                    setTimeout(() => resolve(null), 5000)
+                )
+
+                const result = await Promise.race([sessionPromise, timeoutPromise])
+
+                // 타임아웃 발생 시 로컬 세션 초기화 후 로그인으로
+                if (!result) {
+                    console.warn('Session check timed out - clearing local session')
+                    await supabase.auth.signOut({ scope: 'local' })
+                    router.push('/login')
+                    return
+                }
+
+                const { data: { session } } = result
 
                 if (!session?.user) {
                     router.push('/login')
@@ -26,30 +43,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                     return
                 }
 
-                // 일반 회원 승인 상태 확인 (API 라우트 사용)
+                // 일반 회원: API로 승인 상태 확인
                 try {
                     const res = await fetch(`/api/user/profile?id=${session.user.id}`)
-                    if (res.ok) {
-                        const profile = await res.json()
-                        if (profile?.status === 'approved') {
-                            setStatus('approved')
-                        } else {
-                            router.push('/pending')
-                        }
+                    const profile = res.ok ? await res.json() : null
+                    if (profile?.status === 'approved') {
+                        setStatus('approved')
                     } else {
-                        // API 실패 시 pending으로
                         router.push('/pending')
                     }
                 } catch {
                     router.push('/pending')
                 }
             } catch {
-                // 오류 시 로그인으로
                 router.push('/login')
             }
         }
 
         checkAuth()
+
+        return () => clearTimeout(timeoutId)
     }, [router])
 
     if (status === 'loading') {
