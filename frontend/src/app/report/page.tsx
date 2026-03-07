@@ -1,10 +1,11 @@
-import { supabase } from '@/lib/supabaseClient'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AuthGuard from '@/components/AuthGuard'
 import { FileText, TrendingUp, ShieldAlert, Calendar, ChevronRight } from 'lucide-react'
 
 export const revalidate = 0
 
 async function getLatestReport() {
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
         .from('weekly_reports')
         .select('*')
@@ -20,6 +21,7 @@ async function getLatestReport() {
 }
 
 async function getAllReports() {
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
         .from('weekly_reports')
         .select('id, week_label, summary, post_count, created_at')

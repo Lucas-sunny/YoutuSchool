@@ -34,43 +34,54 @@ def fetch_weekly_posts():
     return posts
 
 def format_posts_for_prompt(posts):
-    """AI 프롬프트에 넣을 포스트 데이터 구성 (실제 데이터만)"""
+    """AI 프롬프트에 넣을 포스트 데이터 구성 (댓글 포함 실제 데이터만)"""
     lines = []
     for i, p in enumerate(posts, 1):
+        top_comments = p.get('top_comments', [])
+        comments_text = ""
+        if top_comments and isinstance(top_comments, list):
+            for c in top_comments:
+                comments_text += f"- [업보트 {c.get('ups', 0)}] {c.get('body', '')[:100]}...\n"
+                
+        upvotes = p.get('upvotes', 0)
+        upvote_ratio = p.get('upvote_ratio', 1.0)
+        
         lines.append(f"""
 --- 포스트 #{i} ---
 서브레딧: r/{p.get('subreddit', '')}
 제목: {p.get('title', '')}
-내용 요약: {(p.get('content') or '')[:500]}
-업데이트: {p.get('upvotes', 0)}
-수집일: {p.get('created_at', '')[:10]}
+내용 요약: {(p.get('content') or '')[:800]}
+반응: 업보트 {upvotes}개 (비율: {upvote_ratio*100:.0f}%), 댓글 수 {p.get('comment_count', 0)}개
+상위 댓글 반응:
+{comments_text if comments_text else "- (수집된 댓글 없음)"}
 기존 분석: {(p.get('ai_insight') or '')[:300]}
 """)
     return "\n".join(lines)
 
-SYSTEM_PROMPT = """당신은 YouTube 크리에이터 전문 리서처입니다.
-제공된 Reddit 포스트 데이터를 기반으로 주간 리포트를 작성합니다.
+SYSTEM_PROMPT = """당신은 상위 1% 유튜브 크리에이터 전문 수석 전략 애널리스트입니다.
+제공된 Reddit 포스트(본문, 상위 댓글, 통계 지표) 데이터를 기반으로 최고급 인사이트가 담긴 주간 리포트를 작성합니다.
 
-⚠️ 절대 규칙 (할루시네이션 방지):
-1. 반드시 아래 제공된 실제 Reddit 포스트 데이터만 사용하세요.
-2. 제공되지 않은 정보, 날짜, 수치, 정책명은 절대 추가하지 마세요.
-3. 확실하지 않은 정보는 "해당 없음" 또는 생략하세요.
-4. 실제 포스트에서 인용할 때는 서브레딧 출처를 명시하세요.
+⚠️ 절대 규칙 (고급화 및 차별화 - 가장 중요!!!):
+1. 한국 유튜브 생태계에 이미 널리 퍼진 뻔한 정보(예: 일관성 유지해라, 썸네일/제목 어그로 끌어라, 쇼츠 많이 올려라 등)는 철저히 배제하세요.
+2. 한국 유튜버들이 아직 잘 모르는 해외 테크 뉴스, 변경된 알고리즘의 구체적 동작 방식/데이터, 글로벌 크리에이터들 사이의 새로운 수익화 꼼수, 플랫폼의 구조적 변화 같은 '비밀스럽고 깊이 있는 고급 정보'만 최우선으로 선별하세요.
+3. 정보 가치가 높고 생소할수록 상위권(TOP 1, 2)에 랭크시키세요. 데이터 기반의 Case Study나 A/B 테스트 결과를 특히 우대하세요.
+4. 모든 조언은 추상적인 칭찬이 아니라, "데이터를 확인하고 즉각 내 채널에 적용할 수 있는 구체적이고 전문적인 기법(예: 특정 지표 하락 시 알고리즘 회피기동, CPM 방어 전략 등)"으로 작성하세요.
+5. 주된 논조는 반드시 수집된 레딧 포스트와 댓글 데이터를 기반으로 하되, 당신의 최고급 도메인 지식을 더해 맥락을 풍부하게 해설하세요.
 
 출력 형식 (JSON):
 {
   "week_label": "2026년 X월 X주차",
   "generated_at": "ISO 날짜",
-  "summary": "이번 주 핵심 1줄 요약",
+  "summary": "이번 주 가장 파급력이 컸던 고급 인사이트 1줄 요약",
   "part_a": [
     {
       "rank": 1,
-      "keyword": "핵심 키워드",
-      "sources": ["r/서브레딧1", "r/서브레딧2"],
-      "summary": "핵심 요약 (실제 포스트 내용 기반)",
-      "creator_impact": "크리에이터 영향",
-      "strategy": "대응 전략",
-      "actions": ["실행 액션1", "실행 액션2"]
+      "keyword": "핵심 키워드 (예: 홈피드 알고리즘 파동)",
+      "sources": ["r/서브레딧명 (업보트 수, 여론 요약)"],
+      "summary": "핵심 요약 (실제 포스트와 댓글 반응 기반의 심층 해설)",
+      "creator_impact": "한국 크리에이터에게 체감되는 구체적이고 치명적인 영향 (수익/조회수 직결)",
+      "strategy": "위기에 대한 회피 또는 기회 선점 전략 (기획/편집 등 실무적 관점)",
+      "actions": ["실행 액션1 (오늘 즉시 점검/실행할 구체적 지침)", "실행 액션2"]
     }
   ],
   "part_b": [
@@ -78,10 +89,9 @@ SYSTEM_PROMPT = """당신은 YouTube 크리에이터 전문 리서처입니다.
   ]
 }
 
-- part_a: 유튜브 동향 및 뉴스 TOP 5
-- part_b: 정책 및 수익창출 TOP 5
-- 데이터가 부족해 5개를 채울 수 없으면 있는 만큼만 작성
-- 각 항목은 여러 포스트를 종합해 작성 가능"""
+- part_a: 유튜브 동향 및 알고리즘 심층 분석 TOP 5
+- part_b: 정책 변화 및 수익창출 극대화 전략 TOP 5
+- 데이터가 부족해 5개를 채울 수 없으면 있는 만큼만 심도 있게 작성 (억지로 개수를 채우기 위해 뻔한 내용 넣기 금지)"""
 
 def generate_weekly_report(posts):
     """실제 포스트 데이터를 기반으로 주간 리포트 생성"""
@@ -110,8 +120,8 @@ def generate_weekly_report(posts):
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
         ],
-        "max_tokens": 3000,
-        "temperature": 0.2,   # 매우 낮은 온도 = 창의적 추가 최소화
+        "max_tokens": 4000,
+        "temperature": 0.4,   # 창의적 융합을 위해 약간 증가
         "response_format": {"type": "json_object"}
     }
 
@@ -147,7 +157,7 @@ def save_report_to_db(report_data, post_count):
     }
 
     r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/weekly_reports",
+        f"{SUPABASE_URL}/rest/v1/weekly_reports?on_conflict=week_label",
         headers={**get_headers(), "Prefer": "resolution=merge-duplicates"},
         json=payload
     )

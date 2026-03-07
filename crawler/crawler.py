@@ -25,27 +25,34 @@ TARGET_SUBREDDITS = [
 ]
 
 # Filtering Constants
-MIN_CONTENT_LENGTH = 50
+MIN_CONTENT_LENGTH = 400  # 🚀 (UPGRADED) 50 -> 400: Only long-form, deep analysis posts
 # Increased diversity threshold (Needs more unique chars to be valid text)
 MIN_CHAR_DIVERSITY = 0.15 
 SPAM_KEYWORDS = ["check out my", "new video", "sub4sub", "watch my", "please subscribe", "channel review", "my first video"]
 
 # ✅ 유튜브 관련 화이트리스트 키워드 (이 중 하나라도 포함된 글만 수집)
 YOUTUBE_RELEVANT_KEYWORDS = [
+    # 심층 분석/데이터 관련 (🚀 신규 추가)
+    "case study", "experiment", "data", "analysis", "statistics", "retention drop",
+    "algorithm shift", "slop", "crackdown", "deep dive", "revenue split", "rpm drop",
+    
     # 정책 관련
     "policy", "terms of service", "community guidelines", "strike",
     "ban", "copyright", "dmca", "appeal", "violation", "suspended",
     "age restriction", "reinstatement", "limited ads",
+    
     # 수익창출 관련
     "monetization", "monetize", "adsense", "rpm", "cpm", "revenue",
     "partner program", "ypp", "super chat", "membership",
     "ad revenue", "payout", "threshold", "earnings", "demonetiz",
+    
     # 뉴스/업데이트 관련
     "update", "announcement", "new feature", "algorithm change",
     "breaking", "youtube changes", "youtube update", "new policy",
     "youtube news", "creator news",
+    
     # 한국어 키워드 (번역 후 포함될 수 있는 단어)
-    "수익", "정책", "뉴스", "알고리즘", "수익창출", "파트너"
+    "수익", "정책", "뉴스", "알고리즘", "수익창출", "파트너", "실험", "데이터", "비교"
 ]
 
 def get_supabase_headers():
@@ -148,62 +155,80 @@ def translate_text(text):
         return text
 
 def run_crawler():
-    print(f"[{datetime.now()}] Starting RSS crawler cycle...")
+    print(f"[{datetime.now()}] Starting JSON API crawler cycle...")
     
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("Error: Missing Supabase environment variables.")
         return
 
-    # XML Namespaces used by Reddit (Atom format)
-    ns = {'atom': 'http://www.w3.org/2005/Atom'}
-
     for subreddit in TARGET_SUBREDDITS:
-        # Increase limit to 100 to get more candidates
-        rss_url = f"https://www.reddit.com/r/{subreddit}/hot/.rss?limit=100"
-        print(f"Fetching RSS: {rss_url}")
+        json_url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=100"
+        print(f"Fetching JSON: {json_url}")
         
         try:
-            # Update User-Agent to be more specific/unique to avoid generic block
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 YoutuSchool/1.0'}
-            response = requests.get(rss_url, headers=headers)
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 YoutuSchool/2.0'}
+            response = requests.get(json_url, headers=headers)
             
             if response.status_code != 200:
-                print(f"  Failed to fetch RSS for {subreddit}: {response.status_code}")
-                continue # Skip to next subreddit
+                print(f"  Failed to fetch JSON for {subreddit}: {response.status_code}")
+                continue
 
-            root = ET.fromstring(response.content)
+            data = response.json()
+            posts = data.get('data', {}).get('children', [])
             
-            for entry in root.findall('atom:entry', ns):
-                title = get_text(entry, 'atom:title', ns)
-                
-                # Correct link extraction
-                link_elem = entry.find('atom:link', ns)
-                link = link_elem.attrib.get('href') if link_elem is not None else ""
-                
-                published_str = get_text(entry, 'atom:published', ns)
-                content_html = get_text(entry, 'atom:content', ns)
-                
-                # Extract post ID
-                post_id = parse_post_id(link)
+            for post in posts:
+                post_info = post.get('data', {})
+                title = post_info.get('title', '')
+                content_raw = post_info.get('selftext', '')
+                permalink = post_info.get('permalink', '')
+                link = f"https://www.reddit.com{permalink}"
+                author = post_info.get('author', 'unknown')
+                post_id = post_info.get('id', '')
+                upvotes = post_info.get('ups', 0)
+                comment_count = post_info.get('num_comments', 0)
+                upvote_ratio = post_info.get('upvote_ratio', 1.0)
+                created_utc = post_info.get('created_utc', 0)
+                published_str = datetime.fromtimestamp(created_utc).isoformat() if created_utc else datetime.now().isoformat()
 
                 # Clean and validate content
-                cleaned_content = clean_html(content_html)
+                cleaned_content = clean_html(content_raw)
                 is_valid, reason = validate_post(title, cleaned_content)
 
                 if not is_valid:
-                    # print(f"  Skipping (invalid): {title[:50]}... ({reason})")
                     continue
 
                 # ✅ 유튜브 관련 글만 수집 (정책/수익창출/뉴스)
                 if not is_youtube_relevant(title, cleaned_content):
-                    print(f"  ⏭️  Skipping (not YouTube relevant): {title[:60]}...")
                     continue
+                
+                # Fetch Top Comments
+                top_comments = []
+                if comment_count > 0:
+                    comments_url = f"https://www.reddit.com{permalink}.json?limit=5&depth=1"
+                    try:
+                        c_resp = requests.get(comments_url, headers=headers)
+                        if c_resp.status_code == 200:
+                            c_data = c_resp.json()
+                            if len(c_data) > 1:
+                                c_children = c_data[1].get('data', {}).get('children', [])
+                                for c in c_children[:3]:  # Top 3 comments
+                                    c_info = c.get('data', {})
+                                    c_body = c_info.get('body', '')
+                                    if c_body and c_body != '[deleted]' and c_body != '[removed]':
+                                        top_comments.append({
+                                            "author": c_info.get('author', 'unknown'),
+                                            "ups": c_info.get('ups', 0),
+                                            "body": c_body[:500] # Limit length
+                                        })
+                    except Exception as ce:
+                        print(f"  Failed to fetch comments for {post_id}: {ce}")
+                    time.sleep(0.5) # API rate limit protection
 
                 # Translate title and content
                 translated_title = translate_text(title)
                 translated_content = translate_text(cleaned_content)
 
-                # Generate AI Insight (🔥 The Info Club 핵심 기능!)
+                # Generate AI Insight
                 print(f"  🤖 Generating AI Insight for: {title[:50]}...")
                 ai_insight = generate_insight(
                     title=title,
@@ -215,16 +240,18 @@ def run_crawler():
                 post_data = {
                     "post_id": post_id,
                     "subreddit": subreddit,
-                    "title": translated_title, # Store translated title
-                    "content": f"### 🇰🇷 요약\n{translated_content}\n\n---\n### 🇺🇸 원문\n{cleaned_content}", # Combined content
+                    "title": translated_title,
+                    "content": f"### 🇰🇷 요약\n{translated_content}\n\n---\n### 🇺🇸 원문\n{cleaned_content}",
                     "url": link,
-                    "author": get_text(entry.find('atom:author', ns), 'atom:name', ns) if entry.find('atom:author', ns) is not None else "unknown",
-                    "upvotes": 0,
-                    "comment_count": 0,
-                    "created_at": published_str if published_str else datetime.now().isoformat(),
+                    "author": author,
+                    "upvotes": upvotes,
+                    "comment_count": comment_count,
+                    "upvote_ratio": float(upvote_ratio),
+                    "top_comments": top_comments, # Will be automatically converted to JSONB via Supabase REST
+                    "created_at": published_str,
                     "crawled_at": datetime.now().isoformat(),
                 }
-                # ai_insight가 있을 때만 포함 (null로 기존 데이터 덮어쓰기 방지)
+                
                 if ai_insight:
                     post_data["ai_insight"] = ai_insight
 
@@ -232,18 +259,11 @@ def run_crawler():
                 endpoint = f"{SUPABASE_URL}/rest/v1/posts?on_conflict=post_id"
                 upsert_response = requests.post(endpoint, json=post_data, headers=get_supabase_headers())
 
-                if upsert_response.status_code in range(200, 300):
-                    # 새로 삽입된 포스트인데 ai_insight가 없으면 별도 patch
-                    if not ai_insight:
-                        # 나중에 batch update script로 처리됨
-                        pass
-                else:
+                if upsert_response.status_code not in range(200, 300):
                     print(f"  Failed to save: {upsert_response.status_code} - {upsert_response.text}")
-
                 
-                # Respect Translation API limits (small delay)
-                time.sleep(0.5)
-
+                time.sleep(1) # API limit safety
+                
         except Exception as e:
             print(f"Error processing {subreddit}: {e}")
             import traceback
